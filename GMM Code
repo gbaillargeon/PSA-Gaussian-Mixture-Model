@@ -1,0 +1,106 @@
+#Guassian Mixture Model Clustering Method for Productivity-Susceptibility Analysis 
+
+##Running the GMM Model for PSA data
+
+#Set a random seed - this makes it so the clusters are drawn the same way each time
+set.seed(123)
+#install.packages
+library(ggplot2)
+library(plotly)
+library(cluster)
+library(tidyverse)
+library(cluster)
+library(mclust)
+
+#Read in data: species, productivity score, susceptibility score, vulnerability score
+PSAdata<-read.csv("xxx.csv", stringsAsFactors=T)
+
+#Creating data table with relevant data only (Productivity, Susceptibility, Vulnerability)
+dataGMM <- select(PSAdata, p, s, v)
+dim(dataGMM)
+
+#Run GMM with 3 Clusters 
+GMM6 <- Mclust(dataGMM, modelNames = "VVI", G=3) 
+
+#Information on the GMM 
+plot(GMM6, what="classification")
+GMM6$classification
+summary(GMM6) 
+GMM6$parameters$mean 
+
+# Add cluster column to original data frame
+PSAdata$cluster <- factor(GMM6$classification)
+
+# Create a separate data frame for centroids
+centroids <- data.frame(p = GMM6$parameters$mean[1, ],  # Use "p" row
+                        s = GMM6$parameters$mean[2, ],  # Use "s" row
+                        v = GMM6$parameters$mean[3,],
+                        cluster = factor(1:3),
+                        fill_color = c("viridis_1", "viridis_4", "virdis_6"))  # Fill colors for each cluster
+
+centroids
+#Calculate silhouette coefficient to compare model with best number of clusters for data fit
+silhouette_coef <- silhouette(GMM6$classification, dist(dataGMM[, c("p", "s", "v")]))
+mean_silhouette <- mean(silhouette_coef[, "sil_width"])
+mean_silhouette 
+
+#Create cluster labels
+cluster_labels <- c("Most Vulnerable", "Moderately Vulnerable", "Least Vulnerable")
+
+
+##Generating GMM graph to visualize model
+#Load libraries
+
+library(grid)
+library(RColorBrewer)
+
+make_gradient <- function(deg = 45, n = 100, cols = blues9) {
+  cols <- colorRampPalette(cols)(n + 1)
+  rad <- deg / (180 / pi)
+  mat <- matrix(
+    data = rep(seq(0, 2.8, length.out = n) * cos(rad), n),
+    byrow = TRUE,
+    ncol = n
+  ) +
+    matrix(
+      data = rep(seq(0, 2.8, length.out = n) * sin(rad), n),
+      byrow = FALSE,
+      ncol = n
+    )
+  mat <- mat - min(mat)
+  mat <- mat / max(mat)
+  mat <- 1 + mat * n
+  mat <- matrix(data = cols[round(mat)], ncol = n)
+  grid::rasterGrob(
+    image = mat,
+    width = unit(1, "npc"),
+    height = unit(1, "npc"), 
+    interpolate = TRUE
+  )
+}
+#using function - can customize this further
+gcol <- make_gradient(
+  deg = -45, n = 8, cols = brewer.pal(9, "GnBu"))
+
+#Create a ggplot scatter plot with shaded circles and custom ellipses overlaying raw data points plotted on x-y axis
+#need cluster 1-3 in legend to be least (1), most (2),and moderately (3) sustainable
+gg <- ggplot(PSAdata, aes(x=p, y = s, fill = cluster, color=cluster)) +
+  annotation_custom(grob = gcol) +
+  geom_point(aes(color=cluster), size = 2, color = "white", alpha=0.01)+
+   labs(title = paste("Productivity vs. Susceptibility with GMM Clustering Mean\nSilhouette Coefficient:", round(mean_silhouette, 2)),
+       x = "Productivity",
+       y = "Susceptibility") +
+  scale_x_reverse() +
+  theme(axis.title.x = element_text(hjust = 0.6), axis.line = element_line(color = "black"), 
+        panel.background = element_rect(fill = "white"))
+
+#Print graph
+final <-gg + scale_colour_viridis_d(option="D")
+final
+
+# Convert ggplot plot to interactive plotly plot with tooltips (hover boxes)
+interactive_plot <- ggplotly(final, tooltip = c("text", "fill"))
+
+# Display the interactive plot
+interactive_plot
+
