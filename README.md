@@ -1,4 +1,4 @@
-# PSA-Gaussian-Mixture-Model
+# Productivity Susceptibility Analsysis for Top 306 Marine Aquarium Trade Species
 Code for running the Guassian Mixture Model using the Mclust package to cluster datapoints in the Productivity-Susceptibility Analysis into three vulnerability bins.
 
 The data needs to be a csv file in the folloiwng format for the code to run:
